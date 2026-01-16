@@ -1,0 +1,637 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UX Designer Portfolio | AI & HarmonyOS Expert</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=Noto+Sans+SC:wght@300;400;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --accent: #a855f7;
+            --bg-dark: #050505;
+        }
+        html { scroll-behavior: smooth; }
+        body {
+            background-color: var(--bg-dark);
+            color: #ffffff;
+            font-family: 'Inter', 'Noto Sans SC', sans-serif;
+            overflow-x: hidden;
+            margin: 0;
+        }
+
+        #canvas-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        .glow-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle at 50% 50%, rgba(168, 85, 247, 0.05) 0%, rgba(5, 5, 5, 0.8) 100%);
+            z-index: 1;
+            pointer-events: none;
+        }
+
+        /* 宇宙星球助理 */
+        .planet-container {
+            position: relative;
+            width: 220px;
+            height: 220px;
+            margin-bottom: 2rem;
+            cursor: pointer;
+            z-index: 10;
+            transition: transform 0.3s ease;
+        }
+        .planet-container:hover { transform: scale(1.05); }
+
+        .planet-core {
+            position: absolute;
+            inset: 20%;
+            background: linear-gradient(135deg, #a855f7, #6366f1);
+            border-radius: 50%;
+            box-shadow: 0 0 60px rgba(168, 85, 247, 0.6);
+            filter: blur(2px);
+            animation: rotateCore 10s linear infinite;
+        }
+
+        .planet-glass {
+            position: absolute;
+            inset: 0;
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            box-shadow: inset 0 0 30px rgba(255, 255, 255, 0.1);
+        }
+
+        .glass-flow {
+            position: absolute;
+            width: 150%;
+            height: 150%;
+            top: -25%;
+            left: -25%;
+            background: conic-gradient(from 0deg, transparent, rgba(168, 85, 247, 0.3), transparent 40%);
+            animation: flowRotate 4s linear infinite;
+            mix-blend-mode: overlay;
+        }
+
+        @keyframes flowRotate { to { transform: rotate(360deg); } }
+        @keyframes rotateCore {
+            0%, 100% { transform: rotate(0deg) scale(1); }
+            50% { transform: rotate(180deg) scale(1.1); }
+        }
+
+        .content-layer { position: relative; z-index: 10; }
+
+        .glass-card {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        .glass-card:hover {
+            transform: translateY(-8px);
+            border-color: var(--accent);
+            box-shadow: 0 20px 40px -10px rgba(168, 85, 247, 0.3);
+        }
+
+        /* 3D Profile Gallery */
+        .profile-gallery {
+            perspective: 2000px;
+            position: relative;
+        }
+        .profile-card-3d {
+            transition: transform 0.6s cubic-bezier(0.23, 1, 0.32, 1);
+            transform-style: preserve-3d;
+            cursor: pointer;
+        }
+        .profile-card-3d:hover {
+            transform: rotateY(10deg) rotateX(5deg) translateZ(50px);
+        }
+        .card-inner-layer {
+            position: absolute;
+            inset: 0;
+            background: rgba(168, 85, 247, 0.1);
+            transform: translateZ(-20px);
+            border-radius: 24px;
+            filter: blur(15px);
+        }
+
+        .project-img-container {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 2465 / 1394;
+            overflow: hidden;
+            background: #111;
+        }
+        .project-img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: transform 0.6s ease;
+        }
+        .glass-card:hover .project-img { transform: scale(1.08); }
+
+        .gradient-text {
+            background: linear-gradient(135deg, #fff 40%, #a855f7 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        /* 弹窗与 AI 面板 */
+        #detailModal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.98);
+            z-index: 200;
+            overflow-y: auto;
+            backdrop-filter: blur(40px);
+        }
+
+        .masonry-grid { display: flex; flex-direction: column; gap: 2.5rem; max-width: 1100px; margin: 0 auto; }
+        .detail-item {
+            width: 100%;
+            border-radius: 16px;
+            overflow: hidden;
+            border: 1px solid rgba(255,255,255,0.1);
+            opacity: 0;
+            transform: translateY(30px);
+            animation: fadeInUp 0.8s forwards;
+        }
+        @keyframes fadeInUp { to { opacity: 1; transform: translateY(0); } }
+
+        .ai-panel {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 380px;
+            height: 520px;
+            display: none; 
+            flex-direction: column;
+            z-index: 150;
+            background: rgba(15, 15, 15, 0.95);
+            border: 1px solid rgba(168, 85, 247, 0.3);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.8);
+            border-radius: 24px;
+            overflow: hidden;
+        }
+
+        .scrollbar-hide::-webkit-scrollbar { display: none; }
+
+        .btn-ai-summary {
+            background: rgba(168, 85, 247, 0.1);
+            border: 1px solid rgba(168, 85, 247, 0.4);
+            color: #d8b4fe;
+            font-size: 0.75rem;
+            padding: 4px 12px;
+            border-radius: 99px;
+            transition: all 0.3s;
+        }
+        .btn-ai-summary:hover { background: rgba(168, 85, 247, 0.25); transform: scale(1.05); }
+
+        .ai-bubble {
+            max-width: 85%;
+            padding: 12px 16px;
+            border-radius: 18px;
+            font-size: 0.85rem;
+            line-height: 1.5;
+            margin-bottom: 12px;
+            word-wrap: break-word;
+        }
+        .ai-bubble.bot { background: rgba(255,255,255,0.05); color: #e5e7eb; align-self: flex-start; border-bottom-left-radius: 4px; border: 1px solid rgba(255,255,255,0.05); }
+        .ai-bubble.user { background: var(--accent); color: white; align-self: flex-end; border-bottom-right-radius: 4px; }
+
+        /* Contact Section Specific Styles */
+        .contact-input {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: white;
+            transition: all 0.3s ease;
+        }
+        .contact-input:focus {
+            border-color: var(--accent);
+            background: rgba(255, 255, 255, 0.06);
+            outline: none;
+        }
+    </style>
+</head>
+<body class="scrollbar-hide">
+    <div id="canvas-container"></div>
+    <div class="glow-bg"></div>
+
+    <div class="content-layer">
+        <!-- 导航栏 -->
+        <nav class="fixed top-0 w-full z-50 px-10 py-8 flex justify-between items-end">
+            <div class="text-xl font-bold tracking-tighter text-purple-400">AI.PORTFOLIO</div>
+            <div class="hidden md:flex items-center space-x-10">
+                <div class="flex space-x-10 font-light text-xs uppercase tracking-[0.2em]">
+                    <a href="#home" class="hover:text-purple-400 transition-colors py-2 border-b border-transparent hover:border-purple-500">首页</a>
+                    <a href="#profile" class="hover:text-purple-400 transition-colors py-2 border-b border-transparent hover:border-purple-500">关于我</a>
+                    <a href="#work" class="hover:text-purple-400 transition-colors py-2 border-b border-transparent hover:border-purple-500">作品集</a>
+                    <a href="#contact" class="hover:text-purple-400 transition-colors py-2 border-b border-transparent hover:border-purple-500">联系</a>
+                </div>
+                <a href="#contact" class="px-6 py-2 border border-purple-500/50 rounded-full hover:bg-purple-500 hover:text-white transition-all text-xs font-semibold tracking-widest uppercase">立即预约</a>
+            </div>
+        </nav>
+
+        <!-- 首页欢迎区域 -->
+        <section id="home" class="min-h-screen flex flex-col justify-center items-center px-6 text-center">
+            <div class="planet-container group" onclick="toggleAIPanel()">
+                <div class="planet-core"></div>
+                <div class="planet-glass overflow-hidden">
+                    <div class="glass-flow"></div>
+                </div>
+                <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
+                    <span class="text-[10px] uppercase tracking-[0.4em] text-white/30 group-hover:text-white transition-colors">Aether</span>
+                </div>
+            </div>
+
+            <h1 class="text-6xl md:text-8xl font-extrabold mb-8 tracking-tighter gradient-text">
+                从感知到共情<br>重构AI交互
+            </h1>
+            <p class="max-w-2xl text-lg text-gray-400 font-light leading-relaxed mb-10">
+                专注于 HarmonyOS 系统级 AI 体验与对话架构设计。<br>探索多模态交互新范式。
+            </p>
+            <div class="flex gap-6">
+                <a href="#work" class="px-10 py-4 bg-purple-600 hover:bg-purple-500 rounded-full transition-all font-medium text-sm">浏览项目</a>
+                <button onclick="toggleAIPanel()" class="px-10 py-4 bg-white/5 border border-white/10 rounded-full hover:bg-white/10 transition-all text-sm font-medium">✨ 询问 AI 助手</button>
+            </div>
+        </section>
+
+        <!-- 个人资料区域 -->
+        <section id="profile" class="py-40 px-6 max-w-7xl mx-auto">
+            <div class="flex flex-col md:flex-row gap-20 items-center">
+                <div class="flex-1 profile-gallery order-2 md:order-1">
+                    <div class="profile-card-3d relative w-full aspect-[4/5] max-w-md mx-auto">
+                        <div class="card-inner-layer"></div>
+                        <div class="absolute inset-0 rounded-3xl overflow-hidden border border-white/10 glass-card">
+                            <!-- 替换头像为路径图片，onerror 回退到原网络图 -->
+                            <img src="jingyi.png" alt="Designer Profile" class="w-full h-full object-cover grayscale hover:grayscale-0 transition-all duration-700" onerror="this.src='https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=800'">
+                            <div class="absolute bottom-0 left-0 right-0 p-8 bg-gradient-to-t from-black via-black/50 to-transparent">
+                                <p class="text-xs text-purple-400 tracking-widest uppercase mb-2">资深 UX 设计师</p>
+                                <h3 class="text-3xl font-bold">设计之上的灵魂</h3>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="flex-1 order-1 md:order-2">
+                    <h2 class="text-5xl font-extrabold mb-8 tracking-tighter gradient-text">关于我 / PROFILE</h2>
+                    <div class="space-y-6 text-gray-400 font-light leading-relaxed">
+                        <p>我是一名深耕于 AI 系统级交互的 UX 设计专家。在过去 4 年中，我致力于消除人机交互中的“技术冰冷感”，通过情感化对话架构与智能感知系统，为超过 1 亿用户重塑智能终端体验。</p>
+                        <p>擅长在复杂的业务逻辑中建立秩序。我的工作不仅是绘制界面，更是定义 AI 在 HarmonyOS 系统中的交互范式与深度情绪反馈。</p>
+                        <div class="grid grid-cols-2 gap-8 pt-6">
+                            <div>
+                                <h4 class="text-white font-bold mb-2">核心专长</h4>
+                                <ul class="text-xs space-y-2 list-disc list-inside">
+                                    <li>多模态对话系统架构</li>
+                                    <li>HarmonyOS 全场景交互</li>
+                                    <li>生成式 AI 体验设计</li>
+                                </ul>
+                            </div>
+                            <div>
+                                <h4 class="text-white font-bold mb-2">设计信仰</h4>
+                                <ul class="text-xs space-y-2 list-disc list-inside">
+                                    <li>设计是 AI 的物理化身</li>
+                                    <li>流动性优于固定性</li>
+                                    <li>极简背后是极度的秩序</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 作品展示区域 -->
+        <section id="work" class="py-32 px-6 max-w-7xl mx-auto">
+            <div class="mb-20">
+                <h2 class="text-4xl font-extrabold tracking-tighter gradient-text">精选作品 / WORKS</h2>
+                <div class="w-12 h-1 bg-purple-600 mt-4"></div>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-12">
+                <!-- 项目 1: 小艺情感对话 (1-1.jpg, 1-2.jpg) -->
+                <div class="glass-card rounded-3xl overflow-hidden group">
+                    <div class="project-img-container">
+                        <img src="./project1/1-0.png" alt="小艺情感对话" class="project-img" onerror="this.src='https://images.unsplash.com/photo-1614728263952-84ea256f9679?auto=format&fit=crop&q=80&w=2465&h=1394'">
+                        <div class="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-transparent"></div>
+                        <div class="absolute bottom-6 left-8 flex flex-col items-start gap-2">
+                            <button onclick="summarizeAI('小艺情感对话')" class="btn-ai-summary">✨ AI 深度解析</button>
+                            <h3 class="text-3xl font-bold">小艺情感对话</h3>
+                        </div>
+                    </div>
+                    <div class="p-8 flex justify-between items-center">
+                        <p class="text-gray-400 text-xs uppercase tracking-widest">系统交互 / 情感化 AI</p>
+                        <button onclick="openDetail('小艺情感对话', ['./project1/1-1.png', './project1/1-2.png','./project1/1-3.png','./project1/1-4.png','./project1/1-5.png','./project1/1-6.png','./project1/1-7.png',])" class="text-purple-400 font-semibold hover:underline">查看详情 →</button>
+                    </div>
+                </div>
+
+                <!-- 项目 2: 小艺看世界 (1-3.jpg, 1-4.jpg) -->
+                <div class="glass-card rounded-3xl overflow-hidden group">
+                    <div class="project-img-container">
+                        <img src="./project2/2-0.png" alt="小艺看世界" class="project-img" onerror="this.src='https://images.unsplash.com/photo-1550751827-4bd374c3f58b?auto=format&fit=crop&q=80&w=2465&h=1394'">
+                        <div class="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-transparent"></div>
+                        <div class="absolute bottom-6 left-8 flex flex-col items-start gap-2">
+                            <button onclick="summarizeAI('小艺看世界')" class="btn-ai-summary">✨ AI 深度解析</button>
+                            <h3 class="text-3xl font-bold">小艺看世界</h3>
+                        </div>
+                    </div>
+                    <div class="p-8 flex justify-between items-center">
+                        <p class="text-gray-400 text-xs uppercase tracking-widest">多模态 / 视觉识别</p>
+                        <button onclick="openDetail('小艺看世界', ['./project2/2-1.png', './project2/2-2.png', './project2/2-3.png', './project2/2-4.png', './project2/2-5.png', './project2/2-6.png', './project2/2-7.png', './project2/2-8.png', './project2/2-9.png', './project2/2-10.png', './project2/2-11.png', './project2/2-12.png', './project2/2-13.png', './project2/2-14.png'])" class="text-purple-400 font-semibold hover:underline">查看详情 →</button>
+                    </div>
+                </div>
+
+                <!-- 项目 3: On App对话架构 (1-5.jpg, 1-6.jpg) -->
+                <div class="glass-card rounded-3xl overflow-hidden group">
+                    <div class="project-img-container">
+                        <img src="./project3/3-0.png" alt="On App" class="project-img" onerror="this.src='https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&q=80&w=2465&h=1394'">
+                        <div class="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-transparent"></div>
+                        <div class="absolute bottom-6 left-8 flex flex-col items-start gap-2">
+                            <button onclick="summarizeAI('On App对话架构')" class="btn-ai-summary">✨ AI 深度解析</button>
+                            <h3 class="text-3xl font-bold">On App对话架构</h3>
+                        </div>
+                    </div>
+                    <div class="p-8 flex justify-between items-center">
+                        <p class="text-gray-400 text-xs uppercase tracking-widest">架构设计 / LLM 代理</p>
+                        <button onclick="openDetail('On App对话系统架构', ['./project3/3-1.png', './project3/3-2.png','./project3/3-3.png','./project3/3-4.png','./project3/3-5.png','./project3/3-6.png','./project3/3-7.png','./project3/3-8.png','./project3/3-9.png','./project3/3-10.png','./project3/3-11.png','./project3/3-12.png','./project3/3-13.png','./project3/3-14.png','./project3/3-15.png','./project3/3-16.png'])" class="text-purple-400 font-semibold hover:underline">查看详情 →</button>
+                    </div>
+                </div>
+
+                <!-- 项目 4: AI 会议平板助手 (1-7.jpg) -->
+                <div class="glass-card rounded-3xl overflow-hidden group">
+                    <div class="project-img-container">
+                        <img src="./project4/4-0.png" alt="Meeting AI" class="project-img" onerror="this.src='https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&q=80&w=2465&h=1394'">
+                        <div class="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-transparent"></div>
+                        <div class="absolute bottom-6 left-8 flex flex-col items-start gap-2">
+                            <button onclick="summarizeAI('AI 会议平板助手')" class="btn-ai-summary">✨ AI 深度解析</button>
+                            <h3 class="text-3xl font-bold">AI 会议平板助手</h3>
+                        </div>
+                    </div>
+                    <div class="p-8 flex justify-between items-center">
+                        <p class="text-gray-400 text-xs uppercase tracking-widest">B端产品 / 办公效率</p>
+                        <button onclick="openDetail('下一代会议平板AI助手', ['./project4/4-1.jpg','./project4/4-2.jpg','./project4/4-3.jpg','./project4/4-4.jpg'])" class="text-purple-400 font-semibold hover:underline">查看详情 →</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 联系区域 -->
+        <section id="contact" class="py-40 px-6 max-w-7xl mx-auto">
+            <div class="flex flex-col md:flex-row gap-20">
+                <div class="flex-1">
+                    <h2 class="text-6xl font-extrabold mb-10 tracking-tighter gradient-text">准备好开启<br>智能新篇章吗？</h2>
+                    <p class="text-gray-400 text-lg mb-12 font-light">如果您正在寻找一位能够重塑 AI 交互边界的设计伙伴，或者只是想聊聊关于 HarmonyOS 的未来，请随时与我联系。</p>
+                    
+                    <div class="space-y-8">
+                        <div class="flex items-center gap-6 group cursor-pointer">
+                            <div class="w-12 h-12 rounded-full border border-white/10 flex items-center justify-center group-hover:border-purple-500 transition-colors">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
+                            </div>
+                            <div>
+                                <p class="text-xs text-gray-500 uppercase tracking-widest">电子邮箱</p>
+                                <p class="text-lg font-medium">jingyi.bangbang@icloud.com</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-6 group cursor-pointer">
+                            <div class="w-12 h-12 rounded-full border border-white/10 flex items-center justify-center group-hover:border-purple-500 transition-colors">
+                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>
+                            </div>
+                            <div>
+                                <p class="text-xs text-gray-500 uppercase tracking-widest">办公地点</p>
+                                <p class="text-lg font-medium">上海 · 中国 (31.2304° N, 121.4737° E)</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex-1 glass-card p-10 rounded-[40px]">
+                    <form class="space-y-6">
+                        <div class="grid grid-cols-2 gap-6">
+                            <div class="space-y-2">
+                                <label class="text-xs uppercase tracking-widest text-gray-500 px-2">姓名</label>
+                                <input type="text" placeholder="您的称呼" class="w-full contact-input p-4 rounded-2xl">
+                            </div>
+                            <div class="space-y-2">
+                                <label class="text-xs uppercase tracking-widest text-gray-500 px-2">邮箱</label>
+                                <input type="email" placeholder="email@example.com" class="w-full contact-input p-4 rounded-2xl">
+                            </div>
+                        </div>
+                        <div class="space-y-2">
+                            <label class="text-xs uppercase tracking-widest text-gray-500 px-2">您的项目需求</label>
+                            <textarea rows="4" placeholder="请简述您的合作意向..." class="w-full contact-input p-4 rounded-2xl"></textarea>
+                        </div>
+                        <button type="submit" class="w-full py-5 bg-purple-600 hover:bg-purple-500 rounded-2xl font-bold tracking-widest uppercase transition-all shadow-xl shadow-purple-600/20 active:scale-95">
+                            发送讯息
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </section>
+
+        <footer class="py-20 text-center border-t border-white/5">
+            <p class="text-gray-500 text-xs tracking-widest uppercase">© 2026 AI.PORTFOLIO - 设计驱动秩序</p>
+        </footer>
+    </div>
+
+    <!-- 作品详情弹窗 -->
+    <div id="detailModal">
+        <div class="max-w-7xl mx-auto px-6 py-24 relative">
+            <button onclick="closeDetail()" class="fixed top-10 right-10 z-[220] bg-white/10 hover:bg-white/20 p-4 rounded-full backdrop-blur-xl border border-white/10">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6L6 18M6 6l12 12"/></svg>
+            </button>
+            <div class="text-center mb-24">
+                <h2 id="modalTitle" class="text-5xl font-extrabold gradient-text mb-4 tracking-tighter uppercase">项目详情</h2>
+                <div class="w-16 h-1 bg-purple-600 mx-auto rounded-full"></div>
+            </div>
+            <div id="masonryGrid" class="masonry-grid"></div>
+        </div>
+    </div>
+
+    <!-- AI 对话面板 -->
+    <div id="aiPanel" class="ai-panel backdrop-blur-3xl flex">
+        <div class="p-6 flex flex-col h-full w-full">
+            <div class="flex justify-between items-center mb-6 pb-4 border-b border-white/10">
+                <div class="flex items-center gap-3">
+                    <div class="w-2 h-2 bg-purple-500 rounded-full animate-pulse shadow-[0_0_10px_#a855f7]"></div>
+                    <span class="font-bold text-xs tracking-widest uppercase text-purple-300">Aether 交互智慧体 v2.0</span>
+                </div>
+                <button onclick="toggleAIPanel()" class="text-gray-500 hover:text-white transition-colors">✕</button>
+            </div>
+            
+            <div id="aiChatHistory" class="flex-1 overflow-y-auto mb-4 pr-2 flex flex-col scrollbar-hide">
+                <div class="ai-bubble bot">你好！我是 <b>Aether</b>，你的作品集导览智慧体。✨<br><br>你可以询问关于项目背后的<b>设计推导</b>、<b>HarmonyOS 交互规范</b>，或者直接询问我主人的<b>职业背景</b>。</div>
+            </div>
+            
+            <div class="flex gap-2 bg-white/5 p-2 rounded-2xl border border-white/10">
+                <input type="text" id="aiInput" 
+                    placeholder="向 Aether 提问..." 
+                    class="flex-1 bg-transparent px-4 py-2 text-sm focus:outline-none"
+                    onkeypress="if(event.key === 'Enter') handleAISend()">
+                <button onclick="handleAISend()" class="bg-purple-600 px-5 py-2 rounded-xl text-xs font-bold shadow-lg shadow-purple-600/30 active:scale-95 transition-all">发送</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- 1. Three.js 背景逻辑 ---
+        let scene, camera, renderer, particles;
+        let mouseX = 0, mouseY = 0;
+
+        function initThree() {
+            scene = new THREE.Scene();
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.z = 5;
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            document.getElementById('canvas-container').appendChild(renderer.domElement);
+
+            const geo = new THREE.BufferGeometry();
+            const pos = new Float32Array(6000 * 3);
+            const cols = new Float32Array(6000 * 3);
+            
+            for(let i=0; i<6000; i++){
+                const r = Math.random() * 8;
+                const angle = r * 1.5 + (i%3)*(Math.PI*2/3); 
+                const i3 = i*3;
+                pos[i3] = Math.cos(angle)*r + (Math.random()-0.5)*0.6;
+                pos[i3+1] = (Math.random()-0.5)*0.5;
+                pos[i3+2] = Math.sin(angle)*r + (Math.random()-0.5)*0.6;
+                const c = new THREE.Color(i%2===0 ? '#a855f7' : '#4c1d95');
+                cols[i3] = c.r; cols[i3+1] = c.g; cols[i3+2] = c.b;
+            }
+            
+            geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+            geo.setAttribute('color', new THREE.BufferAttribute(cols, 3));
+            
+            particles = new THREE.Points(geo, new THREE.PointsMaterial({
+                size: 0.018, 
+                vertexColors: true, 
+                transparent: true, 
+                opacity: 0.8, 
+                blending: THREE.AdditiveBlending,
+                sizeAttenuation: true
+            }));
+            scene.add(particles);
+
+            window.addEventListener('resize', onWindowResize);
+            document.addEventListener('mousemove', (e) => {
+                mouseX = (e.clientX / window.innerWidth) * 2 - 1;
+                mouseY = -(e.clientY / window.innerHeight) * 2 + 1;
+                
+                const card = document.querySelector('.profile-card-3d');
+                if(card) {
+                    const rotateY = mouseX * 25;
+                    const rotateX = -mouseY * 25;
+                    card.style.transform = `rotateY(${rotateY}deg) rotateX(${rotateX}deg)`;
+                }
+            });
+
+            animate();
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            particles.rotation.y += 0.0008;
+            particles.rotation.x += 0.0001;
+            
+            camera.position.x += (mouseX * 0.5 - camera.position.x) * 0.05;
+            camera.position.y += (mouseY * 0.5 - camera.position.y) * 0.05;
+            camera.lookAt(scene.position);
+            
+            renderer.render(scene, camera);
+        }
+        window.onload = initThree;
+
+        // --- 2. AI 对话逻辑 ---
+        function toggleAIPanel() {
+            const panel = document.getElementById('aiPanel');
+            const isHidden = getComputedStyle(panel).display === 'none';
+            panel.style.display = isHidden ? 'flex' : 'none';
+        }
+
+        function appendMessage(role, text) {
+            const history = document.getElementById('aiChatHistory');
+            const bubble = document.createElement('div');
+            bubble.className = `ai-bubble ${role}`;
+            bubble.innerHTML = text;
+            history.appendChild(bubble);
+            history.scrollTop = history.scrollHeight;
+        }
+
+        function handleAISend() {
+            const input = document.getElementById('aiInput');
+            const val = input.value.trim();
+            if(!val) return;
+            
+            appendMessage('user', val);
+            input.value = '';
+            
+            setTimeout(() => {
+                const responses = [
+                    "作为 Aether 智慧体，我观察到主人在 2465x1394 尺度下的交互逻辑非常注重『感知一致性』。",
+                    "关于 AI 交互边界，这个项目的核心在于减少用户的认知负荷。",
+                    "正在检索设计文档... HarmonyOS 的分布式架构是该项目流畅运行的技术支撑。",
+                    "主人的设计风格趋向于『理性优雅』，我建议您点击详情查看更多设计细节。"
+                ];
+                appendMessage('bot', responses[Math.floor(Math.random()*responses.length)]);
+            }, 800);
+        }
+
+        function summarizeAI(projectName) {
+            const panel = document.getElementById('aiPanel');
+            panel.style.display = 'flex';
+            appendMessage('user', `分析项目核心：${projectName}`);
+            setTimeout(() => {
+                appendMessage('bot', `【AI 深度解析：${projectName}】<br>该项目通过高度抽象的流体视觉语言，将复杂的底层 AI 决策过程转化为用户可感知的反馈。核心价值在于将系统响应时间压缩到了极致。`);
+            }, 500);
+        }
+
+        // --- 3. 弹窗逻辑 ---
+        function openDetail(title, imgArray) {
+            const modal = document.getElementById('detailModal');
+            const grid = document.getElementById('masonryGrid');
+            document.getElementById('modalTitle').innerText = title;
+            grid.innerHTML = '';
+            
+            imgArray.forEach((imgSrc, i) => {
+                const item = document.createElement('div');
+                item.className = 'detail-item';
+                item.style.animationDelay = `${i * 0.1}s`;
+                // 使用提供的本地路径图片，回退机制依然保留随机图
+                item.innerHTML = `<img src="${imgSrc}" loading="lazy" class="w-full h-auto" onerror="this.src='https://picsum.photos/seed/${Math.random()}/2465/1394'">`;
+                grid.appendChild(item);
+            });
+            
+            modal.style.display = 'block';
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeDetail() {
+            document.getElementById('detailModal').style.display = 'none';
+            document.body.style.overflow = 'auto';
+        }
+
+        window.onclick = (e) => { 
+            if(e.target.id === 'detailModal') closeDetail(); 
+        };
+    </script>
+</body>
+</html>
